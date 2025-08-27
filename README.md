@@ -68,12 +68,12 @@ Dataset Sizes:
 
 Core Features:
 
-· ✅ Neural network built from scratch with NumPy
-· ✅ 3 hidden layers with ReLU activation
-· ✅ Mini-batch training implementation
-· ✅ L2 regularization and Dropout
-· ✅ Comprehensive logging and visualization
-· ✅ Performance comparison reports
+· ✅ Neural network built from scratch with NumPy \
+· ✅ 3 hidden layers with ReLU activation \
+· ✅ Mini-batch training implementation \
+· ✅ L2 regularization and Dropout \
+· ✅ Comprehensive logging and visualization \
+· ✅ Performance comparison reports \
 
 Technical Stack:
 
@@ -113,16 +113,16 @@ Newton's Method Limitations:
 📁 Project Structure
 
 neural-network-optimizer/
-├── data_loader.py # Dataset loading and preprocessing
-├── neural_network.py # Neural network architecture
-├── layers.py # Dense layer implementation
-├── optimizers.py # GD and Adam optimizers
-├── newton_method.py # Newton's Method implementation
-├── train.py # Training loop and logic
-├── utils.py # Visualization and reporting
-├── comparison_runner.py # Main comparison script
-├── gd_vs_adam_comparison.png # GD vs Adam results
-├── adam_vs_newton_comparison.png # Adam vs Newton results
+├── data_loader.py # Dataset loading and preprocessing \
+├── neural_network.py # Neural network architecture \
+├── layers.py # Dense layer implementation \
+├── optimizers.py # GD and Adam optimizers \
+├── newton_method.py # Newton's Method implementation \
+├── train.py # Training loop and logic \
+├── utils.py # Visualization and reporting \
+├── comparison_runner.py # Main comparison script \
+├── gd_vs_adam_comparison.png # GD vs Adam results \
+├── adam_vs_newton_comparison.png # Adam vs Newton results \
 └── README.md # This file
 
 🏃‍♂️ How to Run
