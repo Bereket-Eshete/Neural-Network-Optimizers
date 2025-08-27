@@ -1,67 +1,66 @@
-# layers.py
 import numpy as np
 
-class Layer:
-    """A fully-connected neural network layer."""
-    def __init__(self, n_input, n_neurons, activation=None, l2_lambda=0.0, dropout_rate=0.0):
-        # Initialize weights and biases
-        # He initialization is good for ReLU
-        self.weights = np.random.randn(n_input, n_neurons) * np.sqrt(2. / n_input)
-        self.biases = np.zeros((1, n_neurons))
+class DenseLayer:
+    def __init__(self, input_size, output_size, activation='relu', dropout_rate=0.0, l2_lambda=0.0):
+        self.weights = np.random.randn(input_size, output_size) * np.sqrt(2.0 / input_size)
+        self.biases = np.zeros((1, output_size))
         self.activation = activation
-        self.l2_lambda = l2_lambda
         self.dropout_rate = dropout_rate
-        
-        # Cache for backward pass
+        self.l2_lambda = l2_lambda
         self.input = None
         self.output = None
         self.dropout_mask = None
-
-    def forward(self, x, is_training=True):
-        self.input = x
-        # Linear transformation
-        z = np.dot(x, self.weights) + self.biases
+    
+    def forward(self, X, training=True):
+        self.input = X
+        z = np.dot(X, self.weights) + self.biases
         
-        # Apply activation function (if any)
-        if self.activation is not None:
-            a = self.activation.forward(z)
+        if self.activation == 'relu':
+            a = np.maximum(0, z)
+        elif self.activation == 'softmax':
+            exp_z = np.exp(z - np.max(z, axis=1, keepdims=True))
+            a = exp_z / np.sum(exp_z, axis=1, keepdims=True)
         else:
-            a = z
+            a = z  # Linear activation
         
-        # Apply dropout during training
-        if is_training and self.dropout_rate > 0.0:
-            self.dropout_mask = np.random.binomial(1, 1 - self.dropout_rate, size=a.shape) / (1 - self.dropout_rate)
-            a = a * self.dropout_mask
-            
+        # Apply dropout if training
+        if training and self.dropout_rate > 0:
+            self.dropout_mask = (np.random.rand(*a.shape) > self.dropout_rate).astype(float)
+            a *= self.dropout_mask
+            a /= (1 - self.dropout_rate)  # Scale during training
+        
         self.output = a
         return self.output
-
-    def backward(self, dout):
-        # 1. Backpropagate through dropout
-        if self.dropout_rate > 0.0:
-            dout = dout * self.dropout_mask
-            
-        # 2. Backpropagate through activation function
-        if self.activation is not None:
-            dout = self.activation.backward(dout)
-            
-        # 3. Calculate gradients for weights and biases
-        batch_size = self.input.shape[0]
-        dweights = np.dot(self.input.T, dout)
-        dbiases = np.sum(dout, axis=0, keepdims=True)
+    
+    def backward(self, dA, learning_rate):
+        # If dropout was applied, mask the gradients
+        if self.dropout_rate > 0 and self.dropout_mask is not None:
+            dA *= self.dropout_mask
+            dA /= (1 - self.dropout_rate)
+        
+        if self.activation == 'relu':
+            dZ = dA * (self.output > 0).astype(float)
+        elif self.activation == 'softmax':
+            dZ = dA  # For softmax, the derivative is handled in the loss function
+        else:
+            dZ = dA  # Linear activation
+        
+        # Calculate gradients
+        dW = np.dot(self.input.T, dZ)
+        db = np.sum(dZ, axis=0, keepdims=True)
+        dX = np.dot(dZ, self.weights.T)
         
         # Add L2 regularization gradient
         if self.l2_lambda > 0:
-            dweights += self.l2_lambda * self.weights
-            
-        self.dweights = dweights
-        self.dbiases = dbiases
+            dW += self.l2_lambda * self.weights
         
-        # 4. Calculate gradient for the input (to pass to previous layer)
-        dinput = np.dot(dout, self.weights.T)
+        # Update parameters
+        self.weights -= learning_rate * dW
+        self.biases -= learning_rate * db
         
-        return dinput
-
-    def update_parameters(self, optimizer, learning_rate):
-        """Update weights and biases using the provided optimizer."""
-        self.weights, self.biases = optimizer.update(self.weights, self.biases, self.dweights, self.dbiases, learning_rate)
+        return dX
+    
+    def get_regularization_loss(self, batch_size):
+        if self.l2_lambda > 0:
+            return 0.5 * self.l2_lambda * np.sum(self.weights ** 2) / batch_size
+        return 0

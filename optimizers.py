@@ -1,83 +1,112 @@
-# optimizers.py
 import numpy as np
 
 class GradientDescent:
-    """Standard Gradient Descent optimizer."""
-    def __init__(self):
+    def __init__(self, learning_rate=0.01):
+        self.learning_rate = learning_rate
         self.name = "Gradient Descent"
-
-    def update(self, weights, biases, dweights, dbiases, learning_rate):
-        """
-        Performs a simple gradient descent update.
+    
+    def update(self, network, X_batch, y_batch):
+        # Forward pass
+        y_pred = network.forward(X_batch, training=True)
         
-        Args:
-            weights: Current weights of the layer.
-            biases: Current biases of the layer.
-            dweights: Gradient of the loss w.r.t. weights.
-            dbiases: Gradient of the loss w.r.t. biases.
-            learning_rate: The learning rate (eta).
-            
-        Returns:
-            updated_weights, updated_biases
-        """
-        weights_updated = weights - learning_rate * dweights
-        biases_updated = biases - learning_rate * dbiases
-        return weights_updated, biases_updated
+        # Compute loss gradient
+        batch_size = X_batch.shape[0]
+        dA = (y_pred - y_batch) / batch_size
+        
+        # Backward pass
+        network.backward(dA, self.learning_rate)
+        
+        return network.compute_loss(y_batch, y_pred, batch_size)
 
 class Adam:
-    """Adam (Adaptive Moment Estimation) optimizer."""
-    def __init__(self, beta1=0.9, beta2=0.999, epsilon=1e-8):
+    def __init__(self, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8):
+        self.learning_rate = learning_rate
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.epsilon = epsilon
+        self.t = 0
+        self.m = None
+        self.v = None
         self.name = "Adam"
-        self.beta1 = beta1  # Decay rate for first moment (mean)
-        self.beta2 = beta2  # Decay rate for second moment (uncentered variance)
-        self.epsilon = epsilon # Small number to prevent division by zero
-        self.t = 0 # Time step counter
+    
+    def initialize_moments(self, network):
+        """Initialize moment estimates for all parameters in the network"""
+        self.m = []
+        self.v = []
         
-        # Initialize moment estimates for weights and biases for each layer
-        # These will be set in the `update` method when we see the parameters for the first time
-        self.m_weights = None
-        self.v_weights = None
-        self.m_biases = None
-        self.v_biases = None
-
-    def update(self, weights, biases, dweights, dbiases, learning_rate):
-        """
-        Performs an Adam update on the parameters.
-        """
-        # Initialize moment estimates if this is the first call for these parameters
-        if self.m_weights is None:
-            self.m_weights = np.zeros_like(weights)
-            self.v_weights = np.zeros_like(weights)
-            self.m_biases = np.zeros_like(biases)
-            self.v_biases = np.zeros_like(biases)
-            self.t = 0
-        
-        # Increase the time step
+        for layer in network.layers:
+            self.m.append({
+                'w': np.zeros_like(layer.weights),
+                'b': np.zeros_like(layer.biases)
+            })
+            self.v.append({
+                'w': np.zeros_like(layer.weights),
+                'b': np.zeros_like(layer.biases)
+            })
+    
+    def update(self, network, X_batch, y_batch):
         self.t += 1
         
-        # Update biased first moment estimate (WEIGHTS)
-        self.m_weights = self.beta1 * self.m_weights + (1 - self.beta1) * dweights
-        # Update biased second moment estimate (WEIGHTS)
-        self.v_weights = self.beta2 * self.v_weights + (1 - self.beta2) * (dweights ** 2)
+        # Initialize moments if not done yet
+        if self.m is None:
+            self.initialize_moments(network)
         
-        # Update biased first moment estimate (BIASES)
-        self.m_biases = self.beta1 * self.m_biases + (1 - self.beta1) * dbiases
-        # Update biased second moment estimate (BIASES)
-        self.v_biases = self.beta2 * self.v_biases + (1 - self.beta2) * (dbiases ** 2)
+        # Forward pass
+        y_pred = network.forward(X_batch, training=True)
         
-        # Compute bias-corrected first moment estimate (WEIGHTS)
-        m_hat_weights = self.m_weights / (1 - self.beta1 ** self.t)
-        # Compute bias-corrected second moment estimate (WEIGHTS)
-        v_hat_weights = self.v_weights / (1 - self.beta2 ** self.t)
+        # Compute loss gradient
+        batch_size = X_batch.shape[0]
+        dA = (y_pred - y_batch) / batch_size
         
-        # Compute bias-corrected first moment estimate (BIASES)
-        m_hat_biases = self.m_biases / (1 - self.beta1 ** self.t)
-        # Compute bias-corrected second moment estimate (BIASES)
-        v_hat_biases = self.v_biases / (1 - self.beta2 ** self.t)
+        # Backward pass to compute gradients
+        d = dA
+        gradients = []
         
-        # Update parameters (WEIGHTS)
-        weights_updated = weights - learning_rate * m_hat_weights / (np.sqrt(v_hat_weights) + self.epsilon)
-        # Update parameters (BIASES)
-        biases_updated = biases - learning_rate * m_hat_biases / (np.sqrt(v_hat_biases) + self.epsilon)
+        # Compute gradients for each layer (without updating parameters)
+        for i, layer in enumerate(reversed(network.layers)):
+            # Apply dropout mask if needed
+            if layer.dropout_rate > 0 and layer.dropout_mask is not None:
+                d *= layer.dropout_mask
+                d /= (1 - layer.dropout_rate)
+            
+            # Compute gradients
+            if layer.activation == 'relu':
+                dZ = d * (layer.output > 0).astype(float)
+            elif layer.activation == 'softmax':
+                dZ = d
+            else:
+                dZ = d
+            
+            dW = np.dot(layer.input.T, dZ)
+            db = np.sum(dZ, axis=0, keepdims=True)
+            dX = np.dot(dZ, layer.weights.T)
+            
+            # Add L2 regularization gradient
+            if layer.l2_lambda > 0:
+                dW += layer.l2_lambda * layer.weights
+            
+            gradients.insert(0, {'dW': dW, 'db': db})
+            d = dX
         
-        return weights_updated, biases_updated
+        # Update parameters using Adam
+        for i, (layer, grad) in enumerate(zip(network.layers, gradients)):
+            # Update moments for weights
+            self.m[i]['w'] = self.beta1 * self.m[i]['w'] + (1 - self.beta1) * grad['dW']
+            self.v[i]['w'] = self.beta2 * self.v[i]['w'] + (1 - self.beta2) * (grad['dW'] ** 2)
+            
+            # Update moments for biases
+            self.m[i]['b'] = self.beta1 * self.m[i]['b'] + (1 - self.beta1) * grad['db']
+            self.v[i]['b'] = self.beta2 * self.v[i]['b'] + (1 - self.beta2) * (grad['db'] ** 2)
+            
+            # Bias correction
+            m_hat_w = self.m[i]['w'] / (1 - self.beta1 ** self.t)
+            v_hat_w = self.v[i]['w'] / (1 - self.beta2 ** self.t)
+            
+            m_hat_b = self.m[i]['b'] / (1 - self.beta1 ** self.t)
+            v_hat_b = self.v[i]['b'] / (1 - self.beta2 ** self.t)
+            
+            # Update parameters
+            layer.weights -= self.learning_rate * m_hat_w / (np.sqrt(v_hat_w) + self.epsilon)
+            layer.biases -= self.learning_rate * m_hat_b / (np.sqrt(v_hat_b) + self.epsilon)
+        
+        return network.compute_loss(y_batch, y_pred, batch_size)
