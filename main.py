@@ -15,7 +15,7 @@ def run_gd_vs_adam_comparison():
     print("=" * 60)
     
     # Load larger dataset for GD vs Adam
-    X_train, X_test, y_train, y_test = load_fashion_mnist(subset_size=10000, test_size=0.2)
+    X_train, X_test, y_train, y_test = load_fashion_mnist(subset_size=40000, test_size=0.2)
     
     # Split training data into train and validation
     from sklearn.model_selection import train_test_split

@@ -113,17 +113,17 @@ Newton's Method Limitations:
 📁 Project Structure
 
 neural-network-optimizer/
-├── data_loader.py # Dataset loading and preprocessing \
-├── neural_network.py # Neural network architecture \
-├── layers.py # Dense layer implementation \
-├── optimizers.py # GD and Adam optimizers \
-├── newton_method.py # Newton's Method implementation \
-├── train.py # Training loop and logic \
-├── utils.py # Visualization and reporting \
-├── comparison_runner.py # Main comparison script \
-├── gd_vs_adam_comparison.png # GD vs Adam results \
-├── adam_vs_newton_comparison.png # Adam vs Newton results \
-└── README.md # This file
+├── data_loader.py  
+├── neural_network.py  
+├── layers.py  
+├── optimizers.py  
+├── newton_method.py  
+├── train.py  
+├── utils.py  
+├── comparison_runner.py
+├── gd_vs_adam_comparison.png
+├── adam_vs_newton_comparison.png
+└── README.md
 
 🏃‍♂️ How to Run
 
